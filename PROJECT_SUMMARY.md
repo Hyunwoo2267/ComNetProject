@@ -27,10 +27,17 @@
 
 완전히 모듈화된 서버 구현:
 
-- ✅ **server.py**: 메인 서버
+- ✅ **server.py**: 메인 서버 (CLI)
   - TCP 소켓 서버
   - 멀티클라이언트 처리 (threading)
   - 명령어 인터페이스 (start/stop/status/quit)
+
+- ✅ **server_gui.py**: 서버 GUI (권장)
+  - tkinter 기반 서버 관리 인터페이스
+  - 버튼 클릭으로 서버/게임 제어
+  - 실시간 플레이어 목록 및 점수 표시
+  - 게임 상태 모니터링
+  - 색상별 로그 표시
 
 - ✅ **game_manager.py**: 게임 로직 관리
   - 게임 상태 머신 (FSM)
@@ -175,7 +182,8 @@ gui.py
 - server/game_manager.py
 - server/player_manager.py
 - server/dummy_generator.py
-- server/server.py
+- server/server.py (CLI)
+- server/server_gui.py (GUI)
 
 **클라이언트 전용**:
 - client/client.py
@@ -202,13 +210,13 @@ gui.py
 ## 코드 통계
 
 ### 파일 수
-- Python 파일: 12개
+- Python 파일: 13개
 - 문서 파일: 5개
-- 총 라인: 약 3,000줄 이상
+- 총 라인: 약 3,500줄 이상
 
 ### 모듈별 라인 수 (추정)
 - common/: ~600줄
-- server/: ~1,000줄
+- server/: ~1,500줄 (GUI 추가)
 - client/: ~800줄
 - docs/: ~600줄
 
@@ -249,6 +257,12 @@ gui.py
 
 ### 서버 실행
 
+**GUI 서버 (권장)**:
+```bash
+python -m server.server_gui
+```
+
+**CLI 서버**:
 ```bash
 python -m server.server
 ```
@@ -356,7 +370,8 @@ ComNetProject/
 │
 ├── server/                      # 서버 모듈
 │   ├── __init__.py
-│   ├── server.py               # 메인 서버
+│   ├── server.py               # 메인 서버 (CLI)
+│   ├── server_gui.py           # 서버 GUI (권장)
 │   ├── game_manager.py         # 게임 관리
 │   ├── player_manager.py       # 플레이어 관리
 │   └── dummy_generator.py      # 더미 패킷 생성

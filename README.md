@@ -40,7 +40,8 @@ ComNetProject/
 │
 ├── server/                # 서버 모듈
 │   ├── __init__.py
-│   ├── server.py          # 메인 서버
+│   ├── server.py          # 메인 서버 (CLI)
+│   ├── server_gui.py      # 서버 GUI
 │   ├── game_manager.py    # 게임 로직 관리
 │   ├── player_manager.py  # 플레이어 관리
 │   └── dummy_generator.py # 더미 패킷 생성
@@ -78,8 +79,27 @@ pip install -r requirements.txt
 
 ### 서버 실행
 
+#### GUI 서버 (권장)
+
 ```bash
-# 기본 설정으로 서버 시작
+# GUI 서버 실행
+python -m server.server_gui
+
+# 또는 호스트/포트 지정
+python -m server.server_gui --host 0.0.0.0 --port 9999
+```
+
+GUI 서버 기능:
+- 서버 시작/중지 버튼
+- 게임 시작/중지 버튼
+- 실시간 플레이어 목록 표시
+- 게임 상태 모니터링
+- 서버 로그 표시
+
+#### CLI 서버 (고급 사용자)
+
+```bash
+# 콘솔 서버 실행
 python -m server.server
 
 # 또는 호스트/포트 지정
@@ -168,7 +188,8 @@ tcp.port == 9999
 
 서버 측 기능:
 
-- **server.py**: TCP 서버, 클라이언트 연결 관리
+- **server.py**: TCP 서버, 클라이언트 연결 관리 (CLI)
+- **server_gui.py**: 서버 GUI 인터페이스 (권장)
 - **game_manager.py**: 게임 상태, 라운드 진행, 점수 계산
 - **player_manager.py**: 플레이어 정보 관리
 - **dummy_generator.py**: 더미 패킷 자동 생성
