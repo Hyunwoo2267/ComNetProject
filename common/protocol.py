@@ -6,6 +6,7 @@ TCP 통신을 위한 메시지 송수신 처리
 import socket
 import json
 import struct
+import base64
 from typing import Optional, Dict, Any
 from .constants import BUFFER_SIZE, ENCODING
 from .message_types import Message
@@ -25,6 +26,7 @@ class Protocol:
     def send_message(sock: socket.socket, message: Message) -> bool:
         """
         메시지를 소켓으로 전송
+        IP 필드는 평문으로, 나머지는 암호화하여 전송
 
         Args:
             sock: 전송할 소켓
@@ -34,8 +36,34 @@ class Protocol:
             성공 여부
         """
         try:
-            # 메시지를 JSON으로 직렬화
-            json_data = message.to_json()
+            # 메시지를 딕셔너리로 변환
+            message_dict = message.to_dict()
+
+            # IP 필드 추출 (평문으로 유지)
+            from_ip = message_dict.get('from_ip')
+            to_ip = message_dict.get('to_ip')
+
+            # IP 필드 제거 후 나머지를 암호화
+            encrypted_data = message_dict.copy()
+            if from_ip is not None:
+                encrypted_data.pop('from_ip', None)
+            if to_ip is not None:
+                encrypted_data.pop('to_ip', None)
+
+            # 나머지 데이터를 JSON으로 직렬화 후 base64 인코딩
+            encrypted_json = json.dumps(encrypted_data, ensure_ascii=False)
+            encoded_data = base64.b64encode(encrypted_json.encode(ENCODING)).decode('ascii')
+
+            # 최종 메시지 구조: IP 필드(평문) + 암호화된 데이터
+            final_message = {}
+            if from_ip is not None:
+                final_message['from_ip'] = from_ip
+            if to_ip is not None:
+                final_message['to_ip'] = to_ip
+            final_message['encrypted_data'] = encoded_data
+
+            # JSON으로 직렬화
+            json_data = json.dumps(final_message, ensure_ascii=False)
             message_bytes = json_data.encode(ENCODING)
 
             # 메시지 길이를 헤더로 패킹
@@ -54,6 +82,7 @@ class Protocol:
     def receive_message(sock: socket.socket) -> Optional[Message]:
         """
         소켓에서 메시지를 수신
+        IP 필드는 평문으로, 나머지는 암호화되어 있음
 
         Args:
             sock: 수신할 소켓
@@ -76,8 +105,31 @@ class Protocol:
                 return None
 
             # JSON 역직렬화
-            json_data = message_bytes.decode(ENCODING)
-            message = Message.from_json(json_data)
+            json_str = message_bytes.decode(ENCODING)
+            received_data = json.loads(json_str)
+
+            # IP 필드 추출 (평문)
+            from_ip = received_data.get('from_ip')
+            to_ip = received_data.get('to_ip')
+
+            # 암호화된 데이터 디코딩
+            encrypted_data = received_data.get('encrypted_data', '')
+            if encrypted_data:
+                decrypted_json = base64.b64decode(encrypted_data.encode('ascii')).decode(ENCODING)
+                decrypted_data = json.loads(decrypted_json)
+            else:
+                decrypted_data = {}
+
+            # IP 필드를 복원된 데이터에 추가
+            if from_ip is not None:
+                decrypted_data['from_ip'] = from_ip
+            if to_ip is not None:
+                decrypted_data['to_ip'] = to_ip
+
+            # Message 객체 생성
+            msg_type = decrypted_data.pop('type', 'UNKNOWN')
+            decrypted_data.pop('timestamp', None)
+            message = Message(msg_type, **decrypted_data)
 
             return message
 

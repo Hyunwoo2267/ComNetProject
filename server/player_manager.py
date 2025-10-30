@@ -47,10 +47,26 @@ class PlayerManager:
     def __init__(self):
         self.players: Dict[str, Player] = {}
         self.lock = threading.Lock()
+        self.virtual_ip_pool = [f"172.20.1.{i}" for i in range(1, 21)]  # 172.20.1.1 ~ 172.20.1.20
+        self.used_ips = set()  # 현재 사용 중인 가상 IP
+
+    def _allocate_virtual_ip(self) -> str:
+        """
+        사용 가능한 가상 IP 할당
+
+        Returns:
+            할당된 가상 IP
+        """
+        for ip in self.virtual_ip_pool:
+            if ip not in self.used_ips:
+                self.used_ips.add(ip)
+                return ip
+        # IP 풀이 모두 사용된 경우 (최대 20명)
+        raise Exception("가상 IP 풀이 고갈됨. 최대 20명까지 지원합니다.")
 
     def add_player(self, player_id: str, sock: socket.socket, address: tuple) -> Player:
         """
-        새 플레이어 추가
+        새 플레이어 추가 (가상 IP 자동 할당)
 
         Args:
             player_id: 플레이어 ID
@@ -61,20 +77,23 @@ class PlayerManager:
             생성된 Player 객체
         """
         with self.lock:
-            ip = address[0]
+            real_ip = address[0]
+            # 가상 IP 할당
+            virtual_ip = self._allocate_virtual_ip()
+
             player = Player(
                 player_id=player_id,
                 socket=sock,
                 address=address,
-                ip=ip
+                ip=virtual_ip  # 가상 IP 사용
             )
             self.players[player_id] = player
-            print(f"[PlayerManager] 플레이어 추가: {player_id} ({ip})")
+            print(f"[PlayerManager] 플레이어 추가: {player_id} (실제 IP: {real_ip}, 가상 IP: {virtual_ip})")
             return player
 
     def remove_player(self, player_id: str) -> bool:
         """
-        플레이어 제거
+        플레이어 제거 (가상 IP 반환)
 
         Args:
             player_id: 제거할 플레이어 ID
@@ -86,7 +105,12 @@ class PlayerManager:
             if player_id in self.players:
                 player = self.players[player_id]
                 player.is_connected = False
-                print(f"[PlayerManager] 플레이어 제거: {player_id}")
+
+                # 가상 IP 반환
+                if player.ip in self.used_ips:
+                    self.used_ips.remove(player.ip)
+
+                print(f"[PlayerManager] 플레이어 제거: {player_id} (가상 IP 반환: {player.ip})")
                 del self.players[player_id]
                 return True
             return False
@@ -211,7 +235,28 @@ class PlayerManager:
             return []
 
     def clear(self):
-        """모든 플레이어 제거"""
+        """모든 플레이어 제거 (가상 IP 풀 초기화)"""
         with self.lock:
             self.players.clear()
-            print("[PlayerManager] 모든 플레이어 제거됨")
+            self.used_ips.clear()
+            print("[PlayerManager] 모든 플레이어 제거됨 (가상 IP 풀 초기화)")
+
+    def get_player_index(self, player_id: str) -> int:
+        """
+        플레이어 인덱스 반환 (포트 할당 등에 사용)
+
+        v2.0: 연결 순서 기반 인덱스 사용 (정렬하지 않음)
+        P2P 포트 할당을 위해 연결 순서를 유지해야 함
+
+        Args:
+            player_id: 플레이어 ID
+
+        Returns:
+            플레이어 인덱스 (0부터 시작, 연결 순서), 없으면 0
+        """
+        with self.lock:
+            # 정렬하지 않고 연결 순서(삽입 순서) 유지
+            player_ids = list(self.players.keys())
+            if player_id in player_ids:
+                return player_ids.index(player_id)
+            return 0

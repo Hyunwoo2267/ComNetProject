@@ -1,12 +1,14 @@
 # 네트워크 보안 게임 프로젝트 - 의존성
 
-# Python 표준 라이브러리만 사용
-# 별도의 외부 패키지 설치 불필요
+# 웹 클라이언트 (Flask 기반)
+Flask==2.3.0
+flask-socketio==5.3.0
+python-socketio==5.9.0
 
-# 사용되는 표준 라이브러리:
+# 표준 라이브러리:
 # - socket: TCP/IP 통신
 # - threading: 멀티스레드 처리
-# - tkinter: GUI (Python 기본 포함)
+# - tkinter: GUI (Python 기본 포함, 선택사항)
 # - json: 데이터 직렬화
 # - struct: 바이너리 데이터 처리
 # - time: 타이머 관리
@@ -17,6 +19,3 @@
 # 외부 도구:
 # - Wireshark: 패킷 분석 (별도 설치 필요)
 #   다운로드: https://www.wireshark.org/download.html
-
-# 선택적 의존성 (향후 확장용):
-# scapy>=2.4.5  # 패킷 생성 및 분석 (선택사항)

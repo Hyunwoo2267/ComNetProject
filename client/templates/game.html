@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>네트워크 보안 게임</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .players-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .players-table th,
+        .players-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .players-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .players-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .log-container {
+            background: #212529;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-timestamp {
+            color: #6c757d;
+        }
+
+        .log-info { color: #17a2b8; }
+        .log-success { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-attack { color: #ffc107; }
+
+        .game-state {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .hp-bar {
+            width: 100%;
+            height: 20px;
+            background: #dee2e6;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            transition: width 0.3s;
+        }
+
+        .connected-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #dc3545;
+            margin-right: 8px;
+        }
+
+        .connected-indicator.active {
+            background: #28a745;
+        }
+
+        .btn-connect {
+            background: #28a745;
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn-connect:hover {
+            background: #218838;
+        }
+
+        .btn-connect:disabled {
+            background: #6c757d;
+        }
+
+        #connectionSection {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ 네트워크 보안 게임</h1>
+
+        <!-- 게임 상태 -->
+        <div id="gameState" class="game-state">대기 중...</div>
+
+        <!-- 상태 바 -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">연결 상태</span>
+                <span class="status-value">
+                    <span id="connectedIndicator" class="connected-indicator"></span>
+                    <span id="connectionStatus">연결 안 됨</span>
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">플레이어 ID</span>
+                <span class="status-value" id="playerId">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">내 IP</span>
+                <span class="status-value" id="myIp">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">점수</span>
+                <span class="status-value" id="score">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">HP</span>
+                <span class="status-value">
+                    <span id="hp">100</span>
+                    <div class="hp-bar">
+                        <div id="hpFill" class="hp-fill" style="width: 100%"></div>
+                    </div>
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">라운드</span>
+                <span class="status-value" id="round">0</span>
+            </div>
+        </div>
+
+        <!-- 연결 -->
+        <div class="section" id="connectionSection">
+            <div class="section-title">🔌 서버 연결</div>
+            <div class="input-group">
+                <input type="text" id="serverHost" placeholder="서버 호스트" value="172.20.0.10">
+                <input type="text" id="serverPort" placeholder="포트" value="9999" style="max-width: 100px;">
+                <button id="connectBtn" onclick="connectToServer()" class="btn-connect">연결</button>
+            </div>
+        </div>
+
+        <!-- 액션 -->
+        <div class="section">
+            <div class="section-title">⚔️ 액션</div>
+            <div class="input-group">
+                <input type="text" id="attackTarget" placeholder="공격 대상 (플레이어 ID 또는 IP 주소)">
+                <button id="attackBtn" onclick="sendAttack()" disabled>공격</button>
+            </div>
+            <div class="input-group">
+                <input type="text" id="defenseIps" placeholder="공격자 IP 주소 (쉼표로 구분)">
+                <button id="defenseBtn" onclick="submitDefense()" disabled>방어 제출</button>
+            </div>
+        </div>
+
+        <!-- 플레이어 목록 -->
+        <div class="section">
+            <div class="section-title">👥 플레이어 목록</div>
+            <table class="players-table">
+                <thead>
+                    <tr>
+                        <th>플레이어 ID</th>
+                        <th>IP 주소</th>
+                        <th>점수</th>
+                        <th>HP</th>
+                    </tr>
+                </thead>
+                <tbody id="playersTableBody">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #6c757d;">플레이어 정보 없음</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 로그 -->
+        <div class="section">
+            <div class="section-title">📋 로그</div>
+            <div id="logContainer" class="log-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let isConnected = false;
+
+        // 소켓 연결
+        socket.on('connect', function() {
+            addLog('웹소켓 연결됨', 'success');
+
+            // 자동으로 상태 조회
+            setTimeout(function() {
+                socket.emit('get_status');
+            }, 1000);
+        });
+
+        // 서버 연결 함수
+        function connectToServer() {
+            const serverHost = document.getElementById('serverHost').value.trim();
+            const serverPort = parseInt(document.getElementById('serverPort').value.trim());
+            const playerId = document.getElementById('playerId').textContent || 'Player';
+
+            if (!serverHost || !serverPort) {
+                addLog('서버 호스트와 포트를 입력하세요', 'error');
+                return;
+            }
+
+            addLog(`서버 연결 시도: ${serverHost}:${serverPort}...`, 'info');
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('connectBtn').textContent = '연결 중...';
+
+            socket.emit('game_connect', {
+                player_id: playerId + '_' + Math.floor(Math.random() * 1000),
+                server_host: serverHost,
+                server_port: serverPort
+            });
+        }
+
+        // 게임 서버 연결 상태
+        socket.on('connected', function(data) {
+            if (data.success !== false) {
+                isConnected = true;
+                document.getElementById('connectedIndicator').classList.add('active');
+                document.getElementById('connectionStatus').textContent = '연결됨';
+                document.getElementById('playerId').textContent = data.player_id;
+                document.getElementById('myIp').textContent = data.ip;
+                document.getElementById('score').textContent = data.score;
+                document.getElementById('hp').textContent = data.hp;
+                document.getElementById('round').textContent = data.round;
+
+                updateHpBar(data.hp);
+                enableButtons();
+                addLog(`게임 서버 연결: ${data.player_id} (${data.ip})`, 'success');
+
+                // 연결 섹션 숨기기
+                document.getElementById('connectionSection').style.display = 'none';
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('connectBtn').textContent = '연결';
+            } else {
+                addLog(`연결 실패: ${data.error}`, 'error');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('connectBtn').textContent = '연결';
+            }
+        });
+
+        // 플레이어 목록 업데이트
+        socket.on('player_list', function(data) {
+            const tbody = document.getElementById('playersTableBody');
+            tbody.innerHTML = '';
+
+            data.players.forEach(function(player) {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${player.player_id}</td>
+                    <td><strong>${player.ip}</strong></td>
+                    <td>${player.score}</td>
+                    <td>${player.hp}</td>
+                `;
+            });
+        });
+
+        // 점수 업데이트
+        socket.on('score_update', function(data) {
+            const playerId = document.getElementById('playerId').textContent;
+            if (data.player_id === playerId) {
+                document.getElementById('score').textContent = data.score;
+                document.getElementById('hp').textContent = data.hp;
+                updateHpBar(data.hp);
+
+                if (data.correct) {
+                    addLog(`✓ 정답! ${data.reason}`, 'success');
+                } else {
+                    addLog(`✗ 오답! ${data.reason}`, 'error');
+                }
+            }
+        });
+
+        // 게임 상태 업데이트
+        socket.on('game_state', function(data) {
+            const stateElement = document.getElementById('gameState');
+            const roundElement = document.getElementById('round');
+
+            stateElement.textContent = data.type;
+            if (data.round_num) {
+                roundElement.textContent = data.round_num;
+            }
+            if (data.time_remaining) {
+                stateElement.textContent += ` (남은 시간: ${data.time_remaining}초)`;
+            }
+
+            addLog(`[${data.type}] 라운드 ${data.round_num || 0}`, 'info');
+        });
+
+        // 정보 메시지
+        socket.on('info_message', function(data) {
+            addLog(`[정보] ${data.message}`, 'info');
+        });
+
+        // 로그 메시지
+        socket.on('log_message', function(data) {
+            // 일부 메시지만 로그에 표시 (너무 많으면 제외)
+            if (data.type === 'ATTACK' || data.type === 'DUMMY' || data.type === 'NOISE') {
+                // 와이어샤크에서 확인하므로 생략
+                return;
+            }
+        });
+
+        // 공격 결과
+        socket.on('attack_result', function(data) {
+            if (data.success) {
+                addLog(`공격 전송: ${data.target}`, 'attack');
+                document.getElementById('attackTarget').value = '';
+            } else {
+                addLog(`공격 실패: ${data.error}`, 'error');
+            }
+        });
+
+        // 방어 결과
+        socket.on('defense_result', function(data) {
+            if (data.success) {
+                addLog(`방어 제출: ${data.ips.join(', ')}`, 'success');
+                document.getElementById('defenseIps').value = '';
+            } else {
+                addLog(`방어 실패: ${data.error}`, 'error');
+            }
+        });
+
+        // 공격 전송
+        function sendAttack() {
+            const target = document.getElementById('attackTarget').value.trim();
+            if (!target) {
+                addLog('공격 대상을 입력하세요', 'error');
+                return;
+            }
+            socket.emit('send_attack', { target: target });
+        }
+
+        // 방어 제출
+        function submitDefense() {
+            const ipsStr = document.getElementById('defenseIps').value.trim();
+            if (!ipsStr) {
+                addLog('공격자 IP를 입력하세요', 'error');
+                return;
+            }
+            const ips = ipsStr.split(',').map(ip => ip.trim()).filter(ip => ip);
+            socket.emit('submit_defense', { attacker_ips: ips });
+        }
+
+        // 로그 추가
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // HP 바 업데이트
+        function updateHpBar(hp) {
+            const fill = document.getElementById('hpFill');
+            fill.style.width = hp + '%';
+
+            if (hp > 70) {
+                fill.style.background = 'linear-gradient(90deg, #28a745 0%, #20c997 100%)';
+            } else if (hp > 30) {
+                fill.style.background = 'linear-gradient(90deg, #ffc107 0%, #fd7e14 100%)';
+            } else {
+                fill.style.background = 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)';
+            }
+        }
+
+        // 버튼 활성화
+        function enableButtons() {
+            document.getElementById('attackBtn').disabled = false;
+            document.getElementById('defenseBtn').disabled = false;
+        }
+
+        // Enter 키 이벤트
+        document.getElementById('attackTarget').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendAttack();
+        });
+
+        document.getElementById('defenseIps').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') submitDefense();
+        });
+
+        // 초기 로그
+        addLog('웹 클라이언트 준비 완료', 'info');
+    </script>
+</body>
+</html>

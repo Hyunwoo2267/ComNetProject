@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (빌드 시 포함하지 않음)
+*.pdf
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Test files
+*.pcap
+capture.pcap

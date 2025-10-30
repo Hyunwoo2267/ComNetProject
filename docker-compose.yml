@@ -1,0 +1,85 @@
+# 네트워크 보안 게임 - Docker Compose 설정
+# 서버 + 웹 기반 클라이언트 컨테이너
+version: '3.8'
+
+services:
+  # 게임 서버 (웹 GUI)
+  server:
+    build: .
+    container_name: game_server
+    hostname: server
+    networks:
+      game_network:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "9999:9999"
+      - "8000:8000"
+    command: python -m server.web_server_gui --game-host 0.0.0.0 --game-port 9999 --web-host 0.0.0.0 --web-port 8000
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./:/app
+
+  # 플레이어 1 (웹 클라이언트)
+  player1:
+    build: .
+    container_name: game_player1
+    hostname: player1
+    networks:
+      game_network:
+        ipv4_address: 172.20.0.11
+    ports:
+      - "8081:5000"
+      - "10001:10001"  # P2P 공격 수신 포트
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python -u -m client.web_client --host 0.0.0.0 --port 5000 --player-id Player1 --server-host 172.20.0.10 --server-port 9999
+    depends_on:
+      - server
+    volumes:
+      - ./:/app
+
+  # 플레이어 2 (웹 클라이언트)
+  player2:
+    build: .
+    container_name: game_player2
+    hostname: player2
+    networks:
+      game_network:
+        ipv4_address: 172.20.0.12
+    ports:
+      - "8082:5000"
+      - "10002:10002"  # P2P 공격 수신 포트
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python -u -m client.web_client --host 0.0.0.0 --port 5000 --player-id Player2 --server-host 172.20.0.10 --server-port 9999
+    depends_on:
+      - server
+    volumes:
+      - ./:/app
+
+  # 플레이어 3 (웹 클라이언트)
+  player3:
+    build: .
+    container_name: game_player3
+    hostname: player3
+    networks:
+      game_network:
+        ipv4_address: 172.20.0.13
+    ports:
+      - "8083:5000"
+      - "10003:10003"  # P2P 공격 수신 포트
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python -u -m client.web_client --host 0.0.0.0 --port 5000 --player-id Player3 --server-host 172.20.0.10 --server-port 9999
+    depends_on:
+      - server
+    volumes:
+      - ./:/app
+
+networks:
+  game_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

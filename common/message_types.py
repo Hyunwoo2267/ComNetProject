@@ -6,6 +6,38 @@ JSON 메시지 구조체 클래스
 from typing import Any, Dict, Optional
 import json
 import time
+import base64
+
+
+def encode_payload(payload: str) -> str:
+    """
+    페이로드를 base64로 인코딩
+    Wireshark에서 평문이 보이지 않도록 함
+
+    Args:
+        payload: 원본 페이로드 문자열
+
+    Returns:
+        base64 인코딩된 문자열
+    """
+    return base64.b64encode(payload.encode('utf-8')).decode('ascii')
+
+
+def decode_payload(encoded_payload: str) -> str:
+    """
+    base64로 인코딩된 페이로드를 디코딩
+
+    Args:
+        encoded_payload: base64 인코딩된 문자열
+
+    Returns:
+        원본 페이로드 문자열
+    """
+    try:
+        return base64.b64decode(encoded_payload.encode('ascii')).decode('utf-8')
+    except Exception:
+        # 디코딩 실패 시 원본 반환 (하위 호환성)
+        return encoded_payload
 
 
 class Message:
@@ -53,20 +85,26 @@ class DummyMessage(Message):
     """더미 패킷 메시지"""
 
     def __init__(self, payload: str):
-        super().__init__("DUMMY", payload=payload)
+        # 페이로드를 base64로 인코딩하여 Wireshark에서 평문이 보이지 않도록 함
+        encoded_payload = encode_payload(payload)
+        super().__init__("DUMMY", payload=encoded_payload)
 
 
 class AttackMessage(Message):
-    """공격 패킷 메시지"""
+    """공격 패킷 메시지 (v2.0: attack_id 추가)"""
 
-    def __init__(self, from_ip: str, to_ip: str, from_player: str, to_player: str, payload: str):
+    def __init__(self, from_ip: str = "", to_ip: str = "", from_player: str = "",
+                 to_player: str = "", payload: str = "", attack_id: str = ""):
+        # 페이로드를 base64로 인코딩하여 Wireshark에서 평문이 보이지 않도록 함
+        encoded_payload = encode_payload(payload) if payload else ""
         super().__init__(
             "ATTACK",
             from_ip=from_ip,
             to_ip=to_ip,
             from_player=from_player,
             to_player=to_player,
-            payload=payload
+            payload=encoded_payload,
+            attack_id=attack_id  # v2.0: 공격 추적용 ID
         )
 
 
@@ -148,4 +186,65 @@ class InfoMessage(Message):
             info_type=info_type,
             message=message,
             **kwargs
+        )
+
+
+class AttackRequestMessage(Message):
+    """공격 요청 메시지"""
+
+    def __init__(self, attacker_id: str, target_id: str):
+        super().__init__(
+            "ATTACK_REQUEST",
+            attacker_id=attacker_id,
+            target_id=target_id
+        )
+
+
+class AttackApprovedMessage(Message):
+    """공격 승인 메시지"""
+
+    def __init__(self, attack_id: str, target_ip: str, target_port: int, target_id: str):
+        super().__init__(
+            "ATTACK_APPROVED",
+            attack_id=attack_id,
+            target_ip=target_ip,
+            target_port=target_port,
+            target_id=target_id
+        )
+
+
+class IncomingAttackWarningMessage(Message):
+    """수신 공격 경고 메시지"""
+
+    def __init__(self, attack_id: str, attacker_ip: str, attacker_id: str):
+        super().__init__(
+            "INCOMING_ATTACK_WARNING",
+            attack_id=attack_id,
+            attacker_ip=attacker_ip,
+            attacker_id=attacker_id
+        )
+
+
+class AttackConfirmMessage(Message):
+    """공격 확인 메시지 (송신자/수신자 확인용, v2.0)"""
+
+    def __init__(self, attack_id: str, from_player: str = "", to_player: str = "",
+                 status: str = "", confirm_type: str = ""):
+        """
+        Args:
+            attack_id: 공격 ID
+            from_player: 공격자 ID
+            to_player: 타겟 ID
+            status: "SENT" 또는 "RECEIVED" (하위 호환성)
+            confirm_type: "SENT" 또는 "RECEIVED" (새 파라미터)
+        """
+        # status와 confirm_type 중 하나를 사용
+        final_confirm_type = confirm_type or status
+
+        super().__init__(
+            "ATTACK_CONFIRM",
+            attack_id=attack_id,
+            from_player=from_player,
+            to_player=to_player,
+            confirm_type=final_confirm_type
         )

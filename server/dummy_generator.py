@@ -76,14 +76,17 @@ class DummyGenerator:
 
         return DummyMessage(payload=payload)
 
-    def set_interval(self, min_sec: float, max_sec: float):
+    def set_interval(self, min_sec: float, max_sec: float = None):
         """
         더미 패킷 생성 인터벌 설정
 
         Args:
-            min_sec: 최소 인터벌 (초)
-            max_sec: 최대 인터벌 (초)
+            min_sec: 최소 인터벌 (초) 또는 고정 인터벌
+            max_sec: 최대 인터벌 (초), None이면 고정 인터벌로 사용
         """
         self.interval_min = min_sec
-        self.interval_max = max_sec
-        print(f"[DummyGenerator] 인터벌 설정: {min_sec}~{max_sec}초")
+        self.interval_max = max_sec if max_sec is not None else min_sec
+        if max_sec is None or min_sec == max_sec:
+            print(f"[DummyGenerator] 인터벌 설정: {min_sec}초 (고정)")
+        else:
+            print(f"[DummyGenerator] 인터벌 설정: {min_sec}~{max_sec}초")
