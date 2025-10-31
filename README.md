@@ -606,8 +606,8 @@ Data (JSON 평문):
 
 ```bash
 # Git Clone
-git clone https://github.com/your-repo/network-security-game.git
-cd network-security-game
+git clone https://github.com/Hyunwoo2267/ComNetProject.git
+cd ComNetProject
 ```
 
 ### 2. Docker 설치
